@@ -1,19 +1,19 @@
 {
   "files": {
     "main.css": "/static/css/main.f8481767.chunk.css",
-    "main.js": "/static/js/main.fd03f1f4.chunk.js",
-    "main.js.map": "/static/js/main.fd03f1f4.chunk.js.map",
+    "main.js": "/static/js/main.d9a21ddf.chunk.js",
+    "main.js.map": "/static/js/main.d9a21ddf.chunk.js.map",
     "runtime-main.js": "/static/js/runtime-main.1f1f19a3.js",
     "runtime-main.js.map": "/static/js/runtime-main.1f1f19a3.js.map",
     "static/css/2.4fc1cf60.chunk.css": "/static/css/2.4fc1cf60.chunk.css",
-    "static/js/2.0b54ef90.chunk.js": "/static/js/2.0b54ef90.chunk.js",
-    "static/js/2.0b54ef90.chunk.js.map": "/static/js/2.0b54ef90.chunk.js.map",
+    "static/js/2.c2a6cd50.chunk.js": "/static/js/2.c2a6cd50.chunk.js",
+    "static/js/2.c2a6cd50.chunk.js.map": "/static/js/2.c2a6cd50.chunk.js.map",
     "index.html": "/index.html",
-    "precache-manifest.ae7ff0260093d95d75b3b194ee78d49f.js": "/precache-manifest.ae7ff0260093d95d75b3b194ee78d49f.js",
+    "precache-manifest.1dc7b8c62a9fdb13e0843646e7c5f118.js": "/precache-manifest.1dc7b8c62a9fdb13e0843646e7c5f118.js",
     "service-worker.js": "/service-worker.js",
     "static/css/2.4fc1cf60.chunk.css.map": "/static/css/2.4fc1cf60.chunk.css.map",
     "static/css/main.f8481767.chunk.css.map": "/static/css/main.f8481767.chunk.css.map",
-    "static/js/2.0b54ef90.chunk.js.LICENSE.txt": "/static/js/2.0b54ef90.chunk.js.LICENSE.txt",
+    "static/js/2.c2a6cd50.chunk.js.LICENSE.txt": "/static/js/2.c2a6cd50.chunk.js.LICENSE.txt",
     "static/media/Bebras_india_logo.png": "/static/media/Bebras_india_logo.9fad7fc4.png",
     "static/media/Bhaskara.PNG": "/static/media/Bhaskara.b60e2b93.PNG",
     "static/media/Chanakya.PNG": "/static/media/Chanakya.89bfa8a4.PNG",
@@ -39,8 +39,8 @@
   "entrypoints": [
     "static/js/runtime-main.1f1f19a3.js",
     "static/css/2.4fc1cf60.chunk.css",
-    "static/js/2.0b54ef90.chunk.js",
+    "static/js/2.c2a6cd50.chunk.js",
     "static/css/main.f8481767.chunk.css",
-    "static/js/main.fd03f1f4.chunk.js"
+    "static/js/main.d9a21ddf.chunk.js"
   ]
 }
