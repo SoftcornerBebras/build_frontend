@@ -436,9 +436,11 @@ class studentResponseFromExcelAPI(generics.GenericAPIView):
         responses=request.data['responses']
         #tell me what to do with group
         for d in responses:
+          studentenrollmentid=None
           print(d['loginID'],d['password'])
           current_user=User.objects.get(loginID=d['loginID'])
           current_studentenrolled=studentEnrollment.objects.filter(userID=current_user)
+          print(current_studentenrolled)
           del d['loginID']
           del d['password']
           del d['Group']
@@ -447,6 +449,9 @@ class studentResponseFromExcelAPI(generics.GenericAPIView):
             if studentenroll.competitionAgeID.competitionID.competitionName==compName:
               studentenrollmentid=studentenroll
           print(studentenrollmentid)
+          if studentenrollmentid==None:
+            responsestring="The user "+current_user.loginID+" has not been enrolled "
+            return Response(responsestring,status=400)
           for key, value in d.items():
             studentresponsedata={}
             print( key, value)
@@ -472,11 +477,17 @@ class studentResponseFromExcelAPI(generics.GenericAPIView):
                   studentresponsedata['optionTranslationID']=None
                   studentresponsedata['ansText']=None
                 else:
-                  position=answerlist.index(value.upper())
-                  print(opti[position],value)
-                  opTranslation=optionTranslation.objects.get(optionTranslationID=opti[position])
-                  print(opTranslation)
-                  studentresponsedata['optionTranslationID']=opTranslation.optionTranslationID
+                  if value.isnumeric():
+                    studentresponsedata['optionTranslationID']=None
+                  else:
+                    position=answerlist.index(value.upper())
+                    
+                    optiontranslations=optionTranslation.objects.filter(optionID__in=opti,languageCodeID=student_enrolled.languageCodeID)
+                    print("--------------------------------------",len(optiontranslations))
+                    print(optiontranslations,value,position)
+                    opTranslation=optionTranslation.objects.get(optionTranslationID=(optiontranslations[position]).optionTranslationID)
+                    print(opTranslation)
+                    studentresponsedata['optionTranslationID']=opTranslation.optionTranslationID
                   studentresponsedata['ansText']=None
             studentresponsedata['competitionQuestionID']=cmpques.competitionQuestionID
             # startTime=student_enrolled.timeTaken #START TIME refers to student enrollment time taken
