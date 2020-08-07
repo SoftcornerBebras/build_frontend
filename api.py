@@ -23,9 +23,7 @@ import os
 from os import walk
 import glob
 from random import shuffle
-# import pythoncom
-# import win32com.client
-# from win32com.client import Dispatch
+from usr.password_encryption import encrypt,decrypt
 from django.conf import settings
 from django.http import HttpResponse
 from django.http import FileResponse
@@ -379,20 +377,117 @@ class studentResponseAPI(generics.GenericAPIView):
       except Exception as e:
         return HttpResponse(e,status=404)
 
+class validateOfflineUpload(generics.GenericAPIView):
+    permission_classes = [
+      permissions.AllowAny,
+    ]
+    serializer_class = StudentResponseSerializer
+    def IsUserRegistered(data):
+      print(data['userid'])
+      try:
+        if User.objects.filter(loginID=data['userid']).count() == 0:
+            return False
+        else:
+            return True
+      except Exception as e:
+        print(e)
+    def IsLoginCredsCorrect(data):
+      print(data['userid'],data['paswd'])
+      user=User.objects.get(loginID=data['userid'])
+      pass_decrypt=decrypt(user.password)
+      print(pass_decrypt)
+      if(pass_decrypt==data['paswd'].strip()):
+          return True
+      else:
+          return False
+    def IsStudentEnrolled(data,compName):
+      user=User.objects.get(loginID=data['userid'])
+      studentenrollmentid=None
+      student_enrolled=studentEnrollment.objects.filter(userID=user.userID)
+      for studentenroll in student_enrolled:
+        if studentenroll.competitionAgeID.competitionID.competitionName==compName:
+          studentenrollmentid=studentenroll
+      if studentenrollmentid==None:
+          return False
+      else:
+          return True 
+    def IsAgeGroupValid(data,compName):
+      print(data['userid'],data['paswd'])
+      grp= (data['group']).lower()
+      studentenrollmentid=None
+      for key, val in maps_groups.items(): 
+          if val == grp: 
+            ageGroup=key
+      print(ageGroup)
+      user=User.objects.get(loginID=data['userid'])
+      student_enrolled=studentEnrollment.objects.filter(userID=user.userID)
+      for studentenroll in student_enrolled:
+        print(studentenroll.competitionAgeID.competitionID.competitionName,compName,studentenroll.competitionAgeID.AgeGroupClassID.AgeGroupID.AgeGroupName==ageGroup)
+        if studentenroll.competitionAgeID.competitionID.competitionName==compName and studentenroll.competitionAgeID.AgeGroupClassID.AgeGroupID.AgeGroupName==ageGroup :
+          studentenrollmentid=studentenroll
+      if studentenrollmentid==None:
+          return False
+      else:
+          return True
+  
+    def post(self, request):
+      try:
+        error=False
+        print(type(request.data))
+        
+        compName=request.data['competitionName']
+        responses=request.data['responses']
+
+        for data in responses:
+          responsestring=""
+          print(data)
+          newdata = dict((k.lower(), v) for k, v in data .items()) 
+          print(newdata)
+          result=validateOfflineUpload.IsUserRegistered(newdata)
+          if(not(result)):
+            responsestring=responsestring+"User Not Registered, UserID password do not match, User not enrolled, Agegroup Not Correct"
+            data.update( {'Comments' : responsestring} )
+            # data['Comments']=responsestring
+            error=True
+            continue
+          print("Step 1 succesfull")
+          result=validateOfflineUpload.IsLoginCredsCorrect(newdata)
+          if(not(result)):
+            responsestring=responsestring+"UserID password do not match"
+          result=validateOfflineUpload.IsStudentEnrolled(newdata,compName)
+          print("Step 2 succesfull")
+          if(not(result)):
+            responsestring=responsestring+", User not enrolled"
+          result=validateOfflineUpload.IsAgeGroupValid(newdata,compName)
+          print("Step 3 succesfull")
+          if(not(result)):
+            responsestring=responsestring+", Agegroup Not Correct"
+          data.update( {'Comments' : responsestring} )
+          if responsestring!="":
+            error=True
+        print(responses)
+        if error:
+            return JsonResponse(responses, safe=False,status=400)
+        else:
+            return Response("Success",status=200)
+
+
+      except Exception as e:
+        return HttpResponse(e,status=404)
+
 class studentResponseFromExcelAPI(generics.GenericAPIView):
     permission_classes = [
       permissions.AllowAny,
     ]
     serializer_class = StudentResponseSerializer
     def calculateScore(studentenrollmentid):
-        print("Calculating score")
         studentenrolled=studentEnrollment.objects.get(studentEnrollmentID=studentenrollmentid)
         studentenrolled.score=0
         studentenrolled.save()
         studentenrolled=studentEnrollment.objects.get(studentEnrollmentID=studentenrollmentid)
         studentresponses=studentResponse.objects.filter(studentEnrollmentID=studentenrolled)
-        print(len(studentresponses))
         cmpquest=competitionQuestion.objects.filter(competitionAgeID=studentenrolled.competitionAgeID)
+        print(len(studentresponses),len(cmpquest))
         if(len(studentresponses)!=len(cmpquest)):
           return "error"
         for data in cmpquest:
@@ -406,63 +501,120 @@ class studentResponseFromExcelAPI(generics.GenericAPIView):
                 print("correct")
                 studentenrolled.score=studentenrolled.score+competition_Marks.correctMarks
                 studentenrolled.save()
-                print("Score Saved")
               elif correctOpt.optionTranslationID.optionTranslationID != studentresponse.optionTranslationID.optionTranslationID:
                 print("Incorrect")
                 studentenrolled.score=studentenrolled.score+competition_Marks.incorrectMarks
                 studentenrolled.save()
-                print(" Score Saved")
 
-    
-      
           elif correctOpt.optionTranslationID is  None and correctOpt.ansText is not None:
             if studentresponse.ansText is not None:
               if correctOpt.ansText == studentresponse.ansText:
                 print("correct")
                 studentenrolled.score=studentenrolled.score+competition_Marks.correctMarks
                 studentenrolled.save()
-                print("Score Saved")
               elif correctOpt.ansText != studentresponse.ansText:
                 print("Incorrect")
                 studentenrolled.score=studentenrolled.score+competition_Marks.incorrectMarks
                 studentenrolled.save()
-                print(" Score Saved")
     
     def post(self, request):
       try:
+        error=False
+        questionmappings=[]    
         answerlist=["A","B","C","D","E"]
-        print(request.data)
         compName=request.data['competitionName']
         responses=request.data['responses']
-        #tell me what to do with group
+        #validating data
+        for data in responses:
+          responsestring=""
+          newdata = dict((k.lower(), v) for k, v in data .items()) 
+          print(newdata)
+          result=validateOfflineUpload.IsUserRegistered(newdata)
+          if(not(result)):
+            responsestring=responsestring+"User Not Registered, UserID password do not match, User not enrolled, Agegroup Not Correct"
+            error=True
+            continue
+          result=validateOfflineUpload.IsLoginCredsCorrect(newdata)
+          if(not(result)):
+            responsestring=responsestring+"UserID password do not match"
+          result=validateOfflineUpload.IsStudentEnrolled(newdata,compName)
+          if(not(result)):
+            responsestring=responsestring+", User not enrolled"
+          result=validateOfflineUpload.IsAgeGroupValid(newdata,compName)
+          if(not(result)):
+            responsestring=responsestring+", Agegroup Not Correct"
+          if responsestring!="":
+            error=True
+        if error:
+            return Response("Please Validate again",status=400)
+
+        ## find out what age groups the give competition has
+        comp=competition.objects.get(competitionName=compName)
+        competitionage=competitionAge.objects.filter(competitionID=comp).values_list("AgeGroupClassID",flat=True)
+        Agegroupclasses=AgeGroupClass.objects.filter(AgeGroupClassID__in=list(competitionage)).values_list("AgeGroupID",flat=True)
+        Agegroups=AgeGroup.objects.filter(AgeGroupID__in=list(Agegroupclasses)).values_list("AgeGroupName",flat=True)
+        Agegroups=list(Agegroups)
+        print(Agegroups)
+        #find out competition questions associated to each age group
+        competitionage=competitionAge.objects.filter(competitionID=comp)
+        for data in competitionage:
+          maps={}
+          if data.AgeGroupClassID.AgeGroupID.AgeGroupName in Agegroups:
+            key_group=maps_groups[data.AgeGroupClassID.AgeGroupID.AgeGroupName]
+            cmp_ques=competitionQuestion.objects.filter(competitionAgeID=data).values_list('questionID',flat=True)
+            splitarray=(data.AgeGroupClassID.AgeGroupID.AgeGroupName.split("-"))
+            language=splitarray[1]
+            language=code.objects.get(codeName=language)
+            question_identifiers=questionTranslation.objects.filter(questionID__in=list(cmp_ques),languageCodeID=language).values_list("Identifier",flat=True)
+            maps={key_group:list(question_identifiers)}
+            questionmappings.append(maps)
+            Agegroups.remove(data.AgeGroupClassID.AgeGroupID.AgeGroupName)            
+        print(questionmappings)
+        #process responses for each student
         for d in responses:
           studentenrollmentid=None
-          print(d['loginID'],d['password'])
-          current_user=User.objects.get(loginID=d['loginID'])
+          newdata = dict((k.lower(), v) for k, v in d.items()) 
+          print(newdata['userid'],newdata['paswd'])
+          current_user=User.objects.get(loginID=newdata['userid'])
           current_studentenrolled=studentEnrollment.objects.filter(userID=current_user)
-          print(current_studentenrolled)
-          del d['loginID']
-          del d['password']
-          del d['Group']
-          print(current_user)
+          grp= (newdata['group']).lower()
+          print(d)
+          del newdata['userid']
+          del newdata['paswd']
+          del newdata['group']
+          if 'comments' in newdata.keys(): 
+            del newdata['comments']
+          else:
+             print("comments absent")
+
+          for key, val in maps_groups.items(): 
+            if val == grp: 
+              ageGroup=key
+          for data in questionmappings:
+            if data.get(grp)!=None:
+              questions=data.get(grp)
+              print("got ",questions)
+          if questions==None:
+            return Response("You haven't entered proper AgeGroup in the column Group")
           for studentenroll in current_studentenrolled:
-            if studentenroll.competitionAgeID.competitionID.competitionName==compName:
+            if studentenroll.competitionAgeID.competitionID.competitionName==compName and studentenroll.competitionAgeID.AgeGroupClassID.AgeGroupID.AgeGroupName==ageGroup :
               studentenrollmentid=studentenroll
           print(studentenrollmentid)
           if studentenrollmentid==None:
             responsestring="The user "+current_user.loginID+" has not been enrolled "
             return Response(responsestring,status=400)
-          for key, value in d.items():
+          print(newdata)
+          for key, value in newdata.items():
             studentresponsedata={}
-            print( key, value)
-            ques=key
+            print( (key), value)
+            index=int(key)-1
+            if index>=len(questions):
+              continue
+            ques=questions[index]
             quesTranslation=questionTranslation.objects.get(Identifier=ques)
             print("got question ",quesTranslation)
             student_enrolled=studentEnrollment.objects.get(studentEnrollmentID=studentenrollmentid.studentEnrollmentID)
-            print(student_enrolled.competitionAgeID,quesTranslation.questionID.questionID)
-            # assuming only competitionageid and question id will be a unique pair
             cmpques=competitionQuestion.objects.get(questionID=quesTranslation.questionID.questionID,competitionAgeID=student_enrolled.competitionAgeID)
-            print(cmpques.competitionQuestionID)
             opt=value
             opti=option.objects.filter(questionID=quesTranslation.questionID).values_list('optionID', flat=True)
             opti=list(opti)
@@ -1377,7 +1529,6 @@ class GetStudentsAgeGroupWise(APIView):
         serializers=studentEnrollmentViewSerializer(lists,many=True)
         return Response(serializers.data)
         
-
 @parser_classes((MultiPartParser,))
 class CustomizePPT(APIView):
     def ppt(self,f,data,school,type,duplicate):
@@ -1548,7 +1699,6 @@ class CustomizePPT(APIView):
         source= os.path.join(settings.MEDIA_ROOT) + '/ZipFolder//'
         zipdir(self,source)
         
-
 class deleteFiles(APIView):
     c = CustomizePPT()
     ppt = c.ppt
